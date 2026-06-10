@@ -1,0 +1,11 @@
+<?php
+
+declare(strict_types=1);
+
+namespace think;
+
+require __DIR__ . '/vendor/autoload.php';
+
+use think\App;
+
+(new App())->console->run();

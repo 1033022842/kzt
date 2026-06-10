@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+Thumbs.db
+*.local
+runtime/
+.env.backup
+frontend/android/app/build/
+frontend/android/.gradle/
+frontend/android/build/
+frontend/android/captures/
+frontend/ios/App/Pods/
+frontend/ios/App/build/

@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AI 语音操控中心</title>
+<style>
+  :root {
+    --bg: #0f0f14;
+    --card-bg: #1a1a24;
+    --card-border: #2a2a3a;
+    --text: #e8e8f0;
+    --text-secondary: #8888a0;
+    --accent: #6c5ce7;
+    --accent-glow: rgba(108,92,231,0.4);
+    --success: #00cec9;
+    --warning: #fdcb6e;
+    --danger: #ff7675;
+    --radius: 14px;
+    --radius-sm: 10px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .phone {
+    width: 375px;
+    min-height: 100vh;
+    padding: 20px 16px 32px;
+    position: relative;
+  }
+  /* header */
+  .header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .header .subtitle {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+  .connection-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,206,201,0.1);
+    border: 1px solid rgba(0,206,201,0.25);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: var(--success);
+    margin-top: 8px;
+  }
+  .connection-badge .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: pulse-dot 2s infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.4); }
+  }
+  /* voice button area */
+  .voice-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .voice-btn-wrap {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin-bottom: 12px;
+  }
+  .voice-btn-glow {
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    background: var(--accent-glow);
+    filter: blur(20px);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .voice-btn-glow.active {
+    opacity: 1;
+    animation: glow-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes glow-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.15); opacity: 1; }
+  }
+  .voice-btn {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 2px solid var(--card-border);
+    background: var(--card-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    z-index: 1;
+  }
+  .voice-btn:active, .voice-btn.recording {
+    border-color: var(--accent);
+    background: rgba(108,92,231,0.1);
+    transform: scale(1.05);
+  }
+  .voice-btn .mic-icon {
+    font-size: 44px;
+    transition: transform 0.3s;
+  }
+  .voice-btn.recording .mic-icon {
+    animation: mic-bounce 0.6s ease-in-out infinite;
+  }
+  @keyframes mic-bounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.12); }
+  }
+  .voice-hint {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+  .voice-hint.recording {
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .voice-text-preview {
+    min-height: 20px;
+    font-size: 14px;
+    color: var(--text);
+    margin-top: 8px;
+    text-align: center;
+    font-style: italic;
+  }
+  /* text fallback */
+  .text-fallback {
+    width: 100%;
+    margin-top: 8px;
+  }
+  .text-fallback input {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+  }
+  .text-fallback input:focus {
+    border-color: var(--accent);
+  }
+  .send-text-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  /* command history */
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .history-item {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .history-item .cmd-text {
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .history-item .cmd-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+  }
+  .cmd-agent {
+    color: var(--text-secondary);
+  }
+  .cmd-status {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .cmd-status.triggered { background: rgba(0,206,201,0.15); color: var(--success); }
+  .cmd-status.running { background: rgba(108,92,231,0.15); color: #a29bfe; }
+  .cmd-status.done { background: rgba(136,136,160,0.15); color: var(--text-secondary); }
+  .cmd-status.error { background: rgba(255,118,117,0.15); color: var(--danger); }
+  /* agent status */
+  .agent-status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .agent-status-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .agent-status-card .agent-icon {
+    font-size: 28px;
+  }
+  .agent-status-card .agent-info {
+    flex: 1;
+  }
+  .agent-status-card .agent-name {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .agent-status-card .agent-state {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+  .agent-status-card .agent-badge {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+  .badge-running { background: rgba(0,206,201,0.15); color: var(--success); }
+  .badge-idle { background: rgba(136,136,160,0.15); color: var(--text-secondary); }
+  .badge-ready { background: rgba(253,203,110,0.15); color: var(--warning); }
+  /* thinking animation */
+  .thinking {
+    background: var(--card-bg);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideIn 0.3s ease;
+  }
+  .thinking-dots {
+    display: flex;
+    gap: 4px;
+  }
+  .thinking-dots span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: dot-bounce 1.4s ease-in-out infinite;
+  }
+  .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dot-bounce {
+    0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+  .thinking-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+</style>
+</head>
+<body>
+<div class="phone">
+  <!-- header -->
+  <div class="header">
+    <h1>🎤 AI 语音操控中心</h1>
+    <div class="subtitle">说话即可操控智能体</div>
+    <div class="connection-badge" id="connBadge">
+      <span class="dot"></span>
+      <span id="connText">已连接到监控端</span>
+    </div>
+  </div>
+
+  <!-- voice button -->
+  <div class="voice-area">
+    <div class="voice-btn-wrap">
+      <div class="voice-btn-glow" id="glow"></div>
+      <button class="voice-btn" id="voiceBtn" ontouchstart="startRecord(event)" ontouchend="stopRecord(event)" onmousedown="startRecord(event)" onmouseup="stopRecord(event)">
+        <span class="mic-icon">🎙️</span>
+      </button>
+    </div>
+    <div class="voice-hint" id="voiceHint">按住说话</div>
+    <div class="voice-text-preview" id="textPreview"></div>
+  </div>
+
+  <!-- text fallback -->
+  <div class="text-fallback">
+    <input type="text" id="textInput" placeholder="或直接输入指令，如：开始发广告" onkeydown="if(event.key==='Enter')sendText()">
+    <button class="send-text-btn" onclick="sendText()">发送指令 →</button>
+  </div>
+
+  <!-- thinking indicator -->
+  <div class="thinking" id="thinking" style="display:none">
+    <div class="thinking-dots">
+      <span></span><span></span><span></span>
+    </div>
+    <span class="thinking-text" id="thinkingText">AI 正在理解指令...</span>
+  </div>
+
+  <!-- command history -->
+  <div class="section-title">📋 指令历史</div>
+  <div class="history-list" id="historyList">
+    <div style="font-size:13px;color:var(--text-secondary);text-align:center;padding:16px;">
+      暂无指令，按住麦克风说话开始
+    </div>
+  </div>
+
+  <!-- agent status -->
+  <div class="section-title">⚡ 智能体状态一览</div>
+  <div class="agent-status-list">
+    <div class="agent-status-card" id="agentMarketing">
+      <span class="agent-icon">🤖</span>
+      <div class="agent-info">
+        <div class="agent-name">营销智能体</div>
+        <div class="agent-state">已绑定 0 个账号</div>
+      </div>
+      <span class="agent-badge badge-idle">空闲</span>
+    </div>
+    <div class="agent-status-card" id="agentInventory">
+      <span class="agent-icon">📦</span>
+      <div class="agent-info">
+        <div class="agent-name">进销存智能体</div>
+        <div class="agent-state">库存正常</div>
+      </div>
+      <span class="agent-badge badge-idle">空闲</span>
+    </div>
+    <div class="agent-status-card" id="agentSecretary">
+      <span class="agent-icon">💬</span>
+      <div class="agent-info">
+        <div class="agent-name">秘书智能体</div>
+        <div class="agent-state">等候指令中</div>
+      </div>
+      <span class="agent-badge badge-ready">就绪</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- mock AI intent parsing ---
+function parseIntent(text) {
+  const t = text.toLowerCase();
+  // marketing
+  if (t.includes('发广告') || t.includes('营销') || t.includes('推广') || t.includes('广告')) {
+    return { agent: 'marketing', agentLabel: '营销智能体', action: '开始批量发送广告', icon: '🤖' };
+  }
+  // inventory
+  if (t.includes('买') && (t.includes('账号') || t.includes('号') || t.includes('库存'))) {
+    return { agent: 'inventory', agentLabel: '进销存智能体', action: '购买账号并自动分配', icon: '📦' };
+  }
+  if (t.includes('库存') || t.includes('进货') || t.includes('进销存') || t.includes('分配')) {
+    return { agent: 'inventory', agentLabel: '进销存智能体', action: '查询库存并分配账号', icon: '📦' };
+  }
+  // secretary
+  if (t.includes('数据') || t.includes('报表') || t.includes('结算') || t.includes('多少') || t.includes('情况') || t.includes('运行') || t.includes('状态') || t.includes('秘书') || t.includes('报告')) {
+    return { agent: 'secretary', agentLabel: '秘书智能体', action: '智能查询数据并汇报', icon: '💬' };
+  }
+  // default fallback - treat as secretary query
+  return { agent: 'secretary', agentLabel: '秘书智能体', action: '智能查询数据并汇报', icon: '💬' };
+}
+
+function sendCommand(text) {
+  if (!text.trim()) return;
+  const intent = parseIntent(text);
+
+  // clear empty state
+  const hist = document.getElementById('historyList');
+  if (hist.querySelector(':scope > div:not(.history-item)')) {
+    hist.innerHTML = '';
+  }
+
+  // show thinking
+  const thinking = document.getElementById('thinking');
+  const thinkingText = document.getElementById('thinkingText');
+  thinking.style.display = 'flex';
+  thinkingText.textContent = 'AI 正在理解指令...';
+
+  // scroll to bottom
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+  // simulate AI processing delay
+  setTimeout(() => {
+    thinkingText.textContent = '正在触发智能体...';
+
+    setTimeout(() => {
+      thinking.style.display = 'none';
+
+      // add history item
+      const item = document.createElement('div');
+      const ts = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+      item.className = 'history-item';
+      item.innerHTML = `
+        <div class="cmd-text">${intent.icon} "${escapeHtml(text)}"</div>
+        <div class="cmd-meta">
+          <span class="cmd-agent">→ ${intent.agentLabel}</span>
+          <span class="cmd-status running">执行中</span>
+          <span style="color:var(--text-secondary);margin-left:auto;">${ts}</span>
+        </div>
+      `;
+      hist.appendChild(item);
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+      // update agent badge
+      updateAgentBadge(intent.agent, 'running');
+
+      // after a bit, mark as triggered
+      setTimeout(() => {
+        const statusEl = item.querySelector('.cmd-status');
+        if (statusEl) {
+          statusEl.textContent = '已触发';
+          statusEl.className = 'cmd-status triggered';
+        }
+        updateAgentBadge(intent.agent, 'busy');
+      }, 1200);
+    }, 800);
+  }, 600);
+}
+
+function updateAgentBadge(agent, state) {
+  const el = document.getElementById(agent === 'marketing' ? 'agentMarketing' : agent === 'inventory' ? 'agentInventory' : 'agentSecretary');
+  const badge = el.querySelector('.agent-badge');
+  badge.className = 'agent-badge';
+  switch (state) {
+    case 'running':
+      badge.textContent = '触发中';
+      badge.classList.add('badge-running');
+      break;
+    case 'busy':
+      badge.textContent = '运行中';
+      badge.classList.add('badge-running');
+      break;
+    default:
+      badge.textContent = agent === 'secretary' ? '就绪' : '空闲';
+      badge.classList.add(agent === 'secretary' ? 'badge-ready' : 'badge-idle');
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// --- voice recording simulation ---
+let recording = false;
+let recordTimer = null;
+
+// Using Web Speech API when available
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.lang = 'zh-CN';
+  recognition.interimResults = true;
+  recognition.continuous = false;
+
+  recognition.onresult = (event) => {
+    let transcript = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      transcript += event.results[i][0].transcript;
+    }
+    document.getElementById('textPreview').textContent = transcript;
+    if (event.results[event.results.length - 1].isFinal) {
+      stopRecordUI();
+      sendCommand(transcript);
+      document.getElementById('textPreview').textContent = '';
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.log('Speech error:', event.error);
+    stopRecordUI();
+    if (event.error === 'not-allowed') {
+      document.getElementById('voiceHint').textContent = '麦克风权限被拒绝，请使用文本输入';
+    } else {
+      document.getElementById('voiceHint').textContent = '语音识别失败，请重试或使用文本输入';
+    }
+    setTimeout(() => {
+      document.getElementById('voiceHint').textContent = '按住说话';
+    }, 3000);
+  };
+
+  recognition.onend = () => {
+    stopRecordUI();
+  };
+}
+
+function startRecord(e) {
+  e.preventDefault();
+  if (recording) return;
+  recording = true;
+
+  const btn = document.getElementById('voiceBtn');
+  const glow = document.getElementById('glow');
+  const hint = document.getElementById('voiceHint');
+  btn.classList.add('recording');
+  glow.classList.add('active');
+  hint.textContent = '正在聆听...';
+  hint.classList.add('recording');
+  document.getElementById('textPreview').textContent = '';
+
+  if (recognition) {
+    try {
+      recognition.start();
+    } catch (e) {
+      // already started
+    }
+  } else {
+    // fallback: simulate recording for demo (browser doesn't support Web Speech API)
+    document.getElementById('voiceHint').textContent = '演示模式 - 松开后模拟发送';
+  }
+}
+
+function stopRecord(e) {
+  if (e) e.preventDefault();
+  if (!recording) return;
+  recording = false;
+
+  if (recognition) {
+    try { recognition.stop(); } catch (e) { /* ignore */ }
+  }
+  stopRecordUI();
+
+  // fallback: if no recognition, use demo text
+  if (!SpeechRecognition) {
+    const demos = [
+      '开始发广告',
+      '买点账号分配给营销智能体',
+      '今天的结算数据怎么样',
+      '我的智能体运行状态如何',
+      '库存还有多少账号'
+    ];
+    const demo = demos[Math.floor(Math.random() * demos.length)];
+    document.getElementById('textPreview').textContent = demo;
+    setTimeout(() => {
+      sendCommand(demo);
+      document.getElementById('textPreview').textContent = '';
+    }, 400);
+  }
+}
+
+function stopRecordUI() {
+  const btn = document.getElementById('voiceBtn');
+  const glow = document.getElementById('glow');
+  const hint = document.getElementById('voiceHint');
+  btn.classList.remove('recording');
+  glow.classList.remove('active');
+  hint.textContent = '按住说话';
+  hint.classList.remove('recording');
+  recording = false;
+}
+
+function sendText() {
+  const input = document.getElementById('textInput');
+  const text = input.value.trim();
+  if (!text) return;
+  sendCommand(text);
+  input.value = '';
+}
+</script>
+</body>
+</html>
