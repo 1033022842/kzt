@@ -254,15 +254,9 @@ function detectVoiceChannel() {
   }
 
   testRec.onstart = () => done('web-speech')
-  testRec.onerror = (e) => {
-    if (e.error === 'network' || e.error === 'service-not-allowed') {
-      done('deepgram')
-    } else {
-      done('web-speech')
-    }
-  }
+  testRec.onerror = () => done('deepgram')  // WebView 里任何错误都切 deepgram
   testRec.onend = () => {
-    if (!resolved) done('web-speech')
+    if (!resolved) done('deepgram')
   }
 
   try {
@@ -271,9 +265,10 @@ function detectVoiceChannel() {
     done('deepgram')
   }
 
+  // 2 秒内没响应也切 deepgram
   setTimeout(() => {
-    if (!resolved) done('web-speech')
-  }, 3000)
+    if (!resolved) done('deepgram')
+  }, 2000)
 }
 
 function startRecord() {
@@ -330,13 +325,11 @@ function startWebSpeech() {
 
   recognition.onerror = (e) => {
     recording.value = false
-    if (e.error === 'network' || e.error === 'service-not-allowed') {
-      voiceMode.value = 'deepgram'
-      ElMessage.info('语音服务不可用，已切换到备用通道，请重试')
-    } else if (e.error === 'not-allowed') {
+    if (e.error === 'not-allowed') {
       ElMessage.warning('麦克风权限被拒绝，请使用文本输入')
     } else if (e.error !== 'no-speech') {
-      ElMessage.warning('语音识别失败，请使用文本输入')
+      voiceMode.value = 'deepgram'
+      ElMessage.info('已切换语音通道，请重新按住说话')
     }
   }
 
@@ -353,19 +346,45 @@ async function startDeepgramFallback() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     audioChunks = []
-    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
 
+    // Android WebView 可能不支持 webm，自动选支持的格式
+    let mimeType = ''
+    const tryTypes = ['audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
+    for (const t of tryTypes) {
+      if (MediaRecorder.isTypeSupported(t)) { mimeType = t; break }
+    }
+    const blobType = mimeType || 'audio/webm'
+
+    mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+
+    let totalSize = 0
     mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) audioChunks.push(e.data)
+      if (e.data.size > 0) {
+        audioChunks.push(e.data)
+        totalSize += e.data.size
+      }
+    }
+
+    mediaRecorder.onerror = () => {
+      recording.value = false
+      stream.getTracks().forEach(t => t.stop())
+      ElMessage.warning('录音异常，请使用文本输入')
     }
 
     mediaRecorder.onstop = async () => {
       stream.getTracks().forEach(t => t.stop())
       recording.value = false
+
+      if (audioChunks.length === 0 || totalSize < 100) {
+        if (Date.now() - recordStartTime < 500) return  // 太短忽略
+        ElMessage.warning('未录制到声音，请重试')
+        return
+      }
+
       sending.value = true
       processingStatus.value = '正在识别语音...'
 
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' })
+      const audioBlob = new Blob(audioChunks, { type: blobType })
       try {
         const res = await recognizeAudio(audioBlob)
         const text = res.data?.text?.trim() || ''
@@ -380,10 +399,8 @@ async function startDeepgramFallback() {
       } catch (e) {
         sending.value = false
         processingStatus.value = ''
-        const msg = e?.response?.data?.msg || e?.message || ''
-        if (msg.includes('未识别到')) {
-          ElMessage.info('未识别到语音内容，请使用文本输入')
-        } else {
+        // request.js 拦截器已经显示了业务错误，这里只兜底
+        if (!e?.response?.data?.msg) {
           ElMessage.warning('语音识别失败，请使用文本输入')
         }
       }
@@ -392,7 +409,7 @@ async function startDeepgramFallback() {
     recording.value = true
     recordStartTime = Date.now()
     voiceText.value = ''
-    mediaRecorder.start()
+    mediaRecorder.start(500)  // 每 500ms 收集一次，避免 Android 上一股脑给空数据
   } catch (e) {
     recording.value = false
     if (e.name === 'NotAllowedError') {

@@ -29,7 +29,7 @@ request.interceptors.response.use(
       if (result.code === 'A0002') {
         removeToken()
         ElMessage.error(result.msg || '登录已过期，请重新登录')
-        window.location.href = '/login'
+        window.location.href = '/#/login'
       } else {
         ElMessage.error(result.msg || '请求失败')
       }
@@ -43,12 +43,14 @@ request.interceptors.response.use(
       if (status === 401) {
         removeToken()
         ElMessage.error('登录已过期，请重新登录')
-        window.location.href = '/login'
+        window.location.href = '/#/login'
       } else {
         ElMessage.error(data?.msg || data?.message || '请求失败')
       }
     } else {
-      ElMessage.error('网络错误，请检查网络连接')
+      const detail = error.message || String(error)
+      console.error('[Request] 网络错误:', detail, error)
+      ElMessage.error('网络错误: ' + detail.substring(0, 50))
     }
     return Promise.reject(error)
   }

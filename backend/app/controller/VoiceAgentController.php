@@ -260,13 +260,21 @@ final class VoiceAgentController extends BaseController
             return $this->fail(ResultCode::PARAM_ERROR, '音频文件为空');
         }
 
+        // 检测音频 MIME 类型，而非硬编码 audio/webm
+        $mimeType = $file->getOriginalMime() ?: 'audio/webm';
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $detected = $finfo->file($tmpPath);
+        if ($detected && str_starts_with($detected, 'audio/')) {
+            $mimeType = $detected;
+        }
+
         $ch = curl_init('https://api.deepgram.com/v1/listen?model=nova-2&language=zh-CN&smart_format=true&detect_language=false');
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => $audioData,
             CURLOPT_HTTPHEADER     => [
                 'Authorization: Token ' . $apiKey,
-                'Content-Type: audio/webm',
+                'Content-Type: ' . $mimeType,
             ],
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
