@@ -7,10 +7,18 @@ use think\facade\Route;
 Route::group('api/v1/auth', function () {
     Route::post('register', 'app\controller\AuthController@register');
     Route::post('login', 'app\controller\AuthController@login');
-})->allowCrossDomain();
+})->allowCrossDomain([
+    'Access-Control-Allow-Origin' => '*',
+    'Access-Control-Allow-Credentials' => 'false',
+    'Access-Control-Allow-Methods' => 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers' => 'Authorization, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since, X-CSRF-TOKEN, X-Requested-With',
+  ]);
 
 // tronusdt 回调：无需认证
-Route::get('api/v1/payment/tronusdt-callback/:id', 'app\controller\PaymentController@tronusdtCallback')->allowCrossDomain();
+Route::get('api/v1/payment/tronusdt-callback/:id', 'app\controller\PaymentController@tronusdtCallback')->allowCrossDomain([
+    'Access-Control-Allow-Origin' => '*',
+    'Access-Control-Allow-Credentials' => 'false',
+  ]);
 
 Route::group('api/v1', function () {
     Route::group('streamer', function () {
@@ -54,4 +62,9 @@ Route::group('api/v1', function () {
         Route::get('xfyun-config', 'app\controller\VoiceAgentController@xfyunConfig');
     });
 })->middleware(\app\middleware\Auth::class)
-  ->allowCrossDomain();
+  ->allowCrossDomain([
+    'Access-Control-Allow-Origin' => '*',
+    'Access-Control-Allow-Credentials' => 'false',
+    'Access-Control-Allow-Methods' => 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers' => 'Authorization, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since, X-CSRF-TOKEN, X-Requested-With',
+  ]);
