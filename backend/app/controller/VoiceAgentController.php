@@ -262,15 +262,17 @@ final class VoiceAgentController extends BaseController
 
         // 用上传文件自带的 MIME 类型，而非硬编码 audio/webm
         $mimeType = $file->getOriginalMime() ?: 'audio/webm';
+        // Android 录出来的格式不一，让 Deepgram 自动检测，只在有效 MIME 时才传
+        $headers = ['Authorization: Token ' . $apiKey];
+        if ($mimeType && str_starts_with($mimeType, 'audio/')) {
+            $headers[] = 'Content-Type: ' . $mimeType;
+        }
 
         $ch = curl_init('https://api.deepgram.com/v1/listen?model=nova-2&language=zh-CN&smart_format=true&detect_language=false');
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => $audioData,
-            CURLOPT_HTTPHEADER     => [
-                'Authorization: Token ' . $apiKey,
-                'Content-Type: ' . $mimeType,
-            ],
+            CURLOPT_HTTPHEADER     => $headers,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_CONNECTTIMEOUT => 5,
